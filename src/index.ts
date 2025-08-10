@@ -7,6 +7,11 @@ import {
     McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 
+
+//I am using spotify-web-api-node to interact with Spotify. If anyone wants to contribute to add more features, check out the library at https://www.npmjs.com/package/spotify-web-api-node#usage
+const SpotifyWebAPI = require("spotify-web-api-node");
+
+
 import google from "googlethis";
 
 const server=new Server({
@@ -44,16 +49,61 @@ server.setRequestHandler(ListToolsRequestSchema,async()=>{
             },
             required:["query"],
         }
-    }]};
-})
+    },
+    {
+        name:"playmusic",
+        description:"Plays requested from spotify",
+        input:{
+            type:"object",
+            properties:{
+                track:{type:"string"},
+                band:{type:"string"},
+                accessToken:{type:"string"}
+            },
+            required:["track","band","accessToken"],
+        }
+    }
+]};
+});
 
-server.setRequestHandler(CallToolRequestSchema,async(request)=>{
+server.setRequestHandler(CallToolRequestSchema, async(request)=>{
     if(request.params.name=="search"){
         const query=String((request.params.arguments as any)?.query??"").trim();
         const result =await search(query);
         return {
             toolResult:result,
         };
+    }
+    else if(request.params.name=="playmusic"){
+        const spotifyApi=new SpotifyWebAPI();
+        const accessToken=String((request.params.arguments as any)?.accessToken??"").trim();
+        spotifyApi.setAccessToken(accessToken);
+        if(!accessToken){
+            console.error("Access token is not there");
+        }
+        const track=String((request.params.arguments as any)?.track??"").trim();
+        const band=String((request.params.arguments as any)?.band??"").trim();
+        if(!track || !band){
+            console.error("Track or band name is not provided");
+            throw new McpError(ErrorCode.MethodNotFound,"Track or band name is not provided");
+        }
+        
+        console.log(`Searching for track: ${track} by ${band}`);
+        const searchResult=await spotifyApi.searchTracks(`${track} ${band}`);
+        const device=await spotifyApi.getMyDevices();
+        if(device.body.devices.length===0){
+            throw new McpError(ErrorCode.MethodNotFound,"No active device found to play music");
+        }
+        const deviceId=device.body.devices[0].id;
+
+        if(searchResult.body.tracks.items>0){
+            const trackUri=searchResult.body.tracks.items[0].uri;
+            await spotifyApi.play({device_id:deviceId,uris:[trackUri]});
+        }
+        else{
+            throw new McpError(ErrorCode.MethodNotFound,"Track you have mentioned is not found");
+        }
+
     }
     else{
         throw new McpError(ErrorCode.MethodNotFound,`Tool ${request.params.name} not found`);
