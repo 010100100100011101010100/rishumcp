@@ -1,6 +1,9 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, } from "@modelcontextprotocol/sdk/types.js";
+import { createDrawingCanvas } from "./image.js";
+//I am using spotify-web-api-node to interact with Spotify. If anyone wants to contribute to add more features, check out the library at https://www.npmjs.com/package/spotify-web-api-node#usage
+const SpotifyWebAPI = require("spotify-web-api-node");
 import google from "googlethis";
 const server = new Server({
     name: "mcp",
@@ -34,15 +37,81 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ["query"],
                 }
-            }] };
+            },
+            {
+                name: "playmusic",
+                description: "Plays requested from spotify",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        track: { type: "string" },
+                        band: { type: "string" },
+                        accessToken: { type: "string" }
+                    },
+                    required: ["track", "band", "accessToken"],
+                }
+            },
+            {
+                name: "drawImage",
+                description: "Generates an image and returns the image on an image canvas with drawing tools",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        prompt: { type: "string" },
+                        clientID: { type: "string" }
+                    },
+                    required: ["prompt", "clientID"],
+                }
+            },
+        ] };
 });
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     if (request.params.name == "search") {
         const query = String(request.params.arguments?.query ?? "").trim();
         const result = await search(query);
         return {
             toolResult: result,
         };
+    }
+    else if (request.params.name == "playmusic") {
+        const spotifyApi = new SpotifyWebAPI();
+        const accessToken = String(request.params.arguments?.accessToken ?? "").trim();
+        spotifyApi.setAccessToken(accessToken);
+        if (!accessToken) {
+            console.error("Access token is not there");
+        }
+        const track = String(request.params.arguments?.track ?? "").trim();
+        const band = String(request.params.arguments?.band ?? "").trim();
+        if (!track || !band) {
+            console.error("Track or band name is not provided");
+            throw new McpError(ErrorCode.MethodNotFound, "Track or band name is not provided");
+        }
+        console.log(`Searching for track: ${track} by ${band}`);
+        const searchResult = await spotifyApi.searchTracks(`${track} ${band}`);
+        const device = await spotifyApi.getMyDevices();
+        if (device.body.devices.length === 0) {
+            throw new McpError(ErrorCode.MethodNotFound, "No active device found to play music");
+        }
+        const deviceId = device.body.devices[0].id;
+        if (searchResult.body.tracks.items > 0) {
+            const trackUri = searchResult.body.tracks.items[0].uri;
+            await spotifyApi.play({ device_id: deviceId, uris: [trackUri] });
+        }
+        else {
+            throw new McpError(ErrorCode.MethodNotFound, "Track you have mentioned is not found");
+        }
+    }
+    else if (request.params.name == "drawImage") {
+        const { clientID, prompt } = request.params.arguments;
+        try {
+            const result = await createDrawingCanvas(clientID, prompt);
+            return {
+                toolResult: result,
+            };
+        }
+        catch (error) {
+            throw new McpError(ErrorCode.MethodNotFound, `Error while generating image: ${error}`);
+        }
     }
     else {
         throw new McpError(ErrorCode.MethodNotFound, `Tool ${request.params.name} not found`);

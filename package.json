@@ -17,6 +17,7 @@
     "inspector": "npx @modelcontextprotocol/inspector build/index.js"
   },
   "dependencies": {
+    "@huggingface/inference": "^4.7.1",
     "@modelcontextprotocol/sdk": "^0.6.0",
     "googlethis": "^1.8.0",
     "spotify-playing": "^1.0.8",

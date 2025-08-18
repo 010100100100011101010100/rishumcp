@@ -6,7 +6,7 @@ import {
     ListToolsRequestSchema,
     McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-
+import { createDrawingCanvas } from "./image.js";
 
 //I am using spotify-web-api-node to interact with Spotify. If anyone wants to contribute to add more features, check out the library at https://www.npmjs.com/package/spotify-web-api-node#usage
 const SpotifyWebAPI = require("spotify-web-api-node");
@@ -23,6 +23,7 @@ const server=new Server({
         }
     }
 );
+
 
 const options={
     page:0,
@@ -53,7 +54,7 @@ server.setRequestHandler(ListToolsRequestSchema,async()=>{
     {
         name:"playmusic",
         description:"Plays requested from spotify",
-        input:{
+        inputSchema:{
             type:"object",
             properties:{
                 track:{type:"string"},
@@ -62,11 +63,23 @@ server.setRequestHandler(ListToolsRequestSchema,async()=>{
             },
             required:["track","band","accessToken"],
         }
-    }
+    },
+    {
+        name:"drawImage",
+        description:"Generates an image and returns the image on an image canvas with drawing tools",
+        inputSchema:{
+            type:"object",
+            properties:{
+                prompt:{type:"string"},
+                clientID:{type:"string"}
+            },
+            required:["prompt","clientID"],
+        }
+    },
 ]};
 });
 
-server.setRequestHandler(CallToolRequestSchema, async(request)=>{
+server.setRequestHandler(CallToolRequestSchema, async(request,extra)=>{
     if(request.params.name=="search"){
         const query=String((request.params.arguments as any)?.query??"").trim();
         const result =await search(query);
@@ -104,6 +117,22 @@ server.setRequestHandler(CallToolRequestSchema, async(request)=>{
             throw new McpError(ErrorCode.MethodNotFound,"Track you have mentioned is not found");
         }
 
+    }
+    else if(request.params.name=="drawImage"){
+        const {clientID,prompt}=request.params.arguments as {
+            prompt:string;
+            clientID:string;
+        }
+        try{
+            const result=await createDrawingCanvas(clientID,prompt);
+            return{
+                toolResult:result,
+            }
+
+        }
+        catch(error){
+            throw new McpError(ErrorCode.MethodNotFound,`Error while generating image: ${error}`);
+        }
     }
     else{
         throw new McpError(ErrorCode.MethodNotFound,`Tool ${request.params.name} not found`);
