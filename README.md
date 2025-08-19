@@ -4,7 +4,7 @@
 
 *2) Paint a picture* **(Using AI generated images on a canvas wherein you can paint over)**  ✅
 
-*3) Write a single file code*
+*3) Write a single file code and run on browser* ✅
 
 *4) Entire Calendar and Time*
 

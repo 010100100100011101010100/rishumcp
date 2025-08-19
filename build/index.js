@@ -2,6 +2,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, } from "@modelcontextprotocol/sdk/types.js";
 import { createDrawingCanvas } from "./image.js";
+import { SPA } from "./SPA.js";
 //I am using spotify-web-api-node to interact with Spotify. If anyone wants to contribute to add more features, check out the library at https://www.npmjs.com/package/spotify-web-api-node#usage
 const SpotifyWebAPI = require("spotify-web-api-node");
 import google from "googlethis";
@@ -63,6 +64,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     required: ["prompt", "clientID"],
                 }
             },
+            {
+                name: "runCode",
+                description: "Runs the generated HTML code in a browser ",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        code: { type: "string" },
+                    },
+                    required: ["code"],
+                },
+            }
         ] };
 });
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
@@ -111,6 +123,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
         }
         catch (error) {
             throw new McpError(ErrorCode.MethodNotFound, `Error while generating image: ${error}`);
+        }
+    }
+    else if (request.params.name == "runCode") {
+        const code = String(request.params.arguments?.code ?? "").trim();
+        if (!code) {
+            throw new McpError(ErrorCode.MethodNotFound, "Code is not provided");
+        }
+        try {
+            return {
+                toolResult: await SPA(code),
+            };
+        }
+        catch (error) {
+            throw new McpError(ErrorCode.MethodNotFound, `Error while running code: ${error}`);
         }
     }
     else {
