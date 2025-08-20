@@ -8,6 +8,6 @@
 
 *4) Creating Calendar Events and opening it*
 
-*5) Weather*
+*5) Weather with a world map*
 
 *6) Play a game*
