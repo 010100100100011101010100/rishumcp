@@ -10,7 +10,7 @@
 
 *5) Weather with a world map*
 
-*6) Play a game*
+*6) Play chess with AI on virtual chessboard*
 
 *7) Scrape a website*
 
