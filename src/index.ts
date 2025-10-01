@@ -8,6 +8,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { createDrawingCanvas } from "./image.js";
 import { SPA } from "./SPA.js";
+import {simpleEvent,simpleRecurring,guestEvent,guestConference} from "./calendar.js";
 
 //I am using spotify-web-api-node to interact with Spotify. If anyone wants to contribute to add more features, check out the library at https://www.npmjs.com/package/spotify-web-api-node#usage
 const SpotifyWebAPI = require("spotify-web-api-node");
@@ -88,7 +89,26 @@ server.setRequestHandler(ListToolsRequestSchema,async()=>{
             },
             required:["code"],
         },
-    }
+    },
+    {
+        name:"Calendar",
+        description:"Creates calendar events. You can create simple events, recurring events, events with guests and events with guests and conference options",
+        inputSchema:{
+            type:"object",
+            properties:{
+                OauthClientID:{type:"string", description:"Oauth Client ID for Google Calendar API"},
+                eventName:{type:"string", description:"Name of the event"},
+                date:{type:"string", description:"Date of the event in ISO format"},
+                starttime:{type:"string", description:"StartTime of the event in HH:MM format"},
+                endtime:{type:"string", description:"End Time of the event in HH:MM format"},
+                recurrance:{type:"string", description:"Recurrance of the event. Can be daily, weekly, monthly or yearly"},
+                guests:{type:"array", items:{type:"string"}, description:"List of guest emails"},
+                conference:{type:"boolean", description:"Whether to add conference options or not"},
+                eventDescription:{type:"string", description:"Description of the event"},
+            },
+            required:["OauthClientID","eventName","eventDescription","time"]
+        },
+    },
 ]};
 });
 
@@ -161,6 +181,35 @@ server.setRequestHandler(CallToolRequestSchema, async(request,extra)=>{
         catch(error){
             throw new McpError(ErrorCode.MethodNotFound,`Error while running code: ${error}`);
         }
+    }
+    else if(request.params.name=="Calendar"){
+        const {OauthClientID,eventName,starttime,endtime,date,recurrance,guests,conference,eventDescription}=request.params.arguments as {
+            OauthClientID:string;
+            eventName:string;
+            starttime:string;
+            endtime:string;
+            date?:string;
+            recurrance?:string;
+            guests:string[];
+            conference?:boolean;
+            eventDescription:string;}
+            try{
+                if(recurrance && !guests){
+                    await simpleRecurring(OauthClientID,eventName,starttime,endtime,date!,eventDescription,recurrance);
+                }
+                else if(guests && conference==true){
+                    await guestConference(OauthClientID,eventName,starttime,endtime,date!,eventDescription,guests,true);
+                }
+                else if(guests && conference==false){
+                    await guestEvent(OauthClientID,eventName,starttime,endtime,date!,eventDescription,guests);
+                }
+                else{
+                    await simpleEvent(OauthClientID,eventName,starttime,endtime,date!,eventDescription);
+                }
+            }
+            catch(error){
+                throw new McpError(ErrorCode.MethodNotFound,`Error while creating calendar event: ${error}`);
+            }
     }
     else{
         throw new McpError(ErrorCode.MethodNotFound,`Tool ${request.params.name} not found`);
