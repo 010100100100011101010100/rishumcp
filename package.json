@@ -19,6 +19,7 @@
   "dependencies": {
     "@huggingface/inference": "^4.7.1",
     "@modelcontextprotocol/sdk": "^0.6.0",
+    "googleapis": "^161.0.0",
     "googlethis": "^1.8.0",
     "spotify-playing": "^1.0.8",
     "spotify-web-api-node": "^5.0.2"
