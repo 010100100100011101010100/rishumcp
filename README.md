@@ -11,3 +11,7 @@
 *5) Weather with a world map*
 
 *6) Play a game*
+
+*7) Scrape a website*
+
+*8) Index a codebase and generate code.md*
